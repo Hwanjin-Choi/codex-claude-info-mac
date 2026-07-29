@@ -1,9 +1,9 @@
 <div align="center">
-  <img src="Resources/AppIcon.svg" width="128" alt="Codex Info icon">
-  <h1>Codex Info for macOS</h1>
+  <img src="Resources/AppIcon.svg" width="128" alt="Codex & Claude Info icon">
+  <h1>Codex & Claude Info for macOS</h1>
   <p>Codex와 Claude Code 사용량, 리셋 시각, 모델과 작업 상태를 메뉴바에서 확인하는 작은 앱입니다.</p>
   <p>
-    <a href="https://github.com/Hwanjin-Choi/codex-info-mac/releases/latest">
+    <a href="https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/latest">
       <strong>최신 버전 다운로드</strong>
     </a>
   </p>
@@ -25,10 +25,10 @@
 
 ## 설치 방법
 
-1. [Releases](https://github.com/Hwanjin-Choi/codex-info-mac/releases/latest)에서
-   최신 `Codex-Info-*.dmg`를 다운로드합니다.
-2. DMG를 열고 `Codex Info.app`을 `Applications` 폴더로 드래그합니다.
-3. 응용 프로그램 폴더에서 **Codex Info**를 실행합니다.
+1. [Releases](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/latest)에서
+   최신 `Codex-Claude-Info-*.dmg`를 다운로드합니다.
+2. DMG를 열고 `Codex & Claude Info.app`을 `Applications` 폴더로 드래그합니다.
+3. 응용 프로그램 폴더에서 **Codex & Claude Info**를 실행합니다.
 4. 메뉴바의 계기판 아이콘을 누르면 사용량을 확인할 수 있습니다.
 
 이 앱은 Apple Developer ID로 공증되지 않았습니다. macOS에서 개발자를 확인할
@@ -60,7 +60,7 @@ line 명령이 있으면 그 출력을 그대로 유지합니다.
 
 ```bash
 zsh scripts/build-app.sh
-open "dist/Codex Info.app"
+open "dist/Codex & Claude Info.app"
 ```
 
 로컬에 `~/.codex/pets/jjanggu-codi/spritesheet.webp`가 있으면 빌드 시 펫으로

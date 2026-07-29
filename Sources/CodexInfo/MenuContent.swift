@@ -435,7 +435,11 @@ private struct LimitCard: View {
                 HStack {
                     Text(limit.windowText)
                     Spacer()
-                    Label(countdown(to: limit.resetsAt, now: context.date), systemImage: "timer")
+                    if limit.resetKnown == false {
+                        Label("리셋 시각 확인 중", systemImage: "timer")
+                    } else {
+                        Label(countdown(to: limit.resetsAt, now: context.date), systemImage: "timer")
+                    }
                 }
                 .font(.caption2).foregroundStyle(.secondary)
             }

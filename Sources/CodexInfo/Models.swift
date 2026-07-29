@@ -6,6 +6,23 @@ struct UsageLimit: Identifiable, Codable, Equatable {
     let usedPercent: Double
     let windowMinutes: Int
     let resetsAt: Date
+    let resetKnown: Bool?
+
+    init(
+        id: String,
+        title: String,
+        usedPercent: Double,
+        windowMinutes: Int,
+        resetsAt: Date,
+        resetKnown: Bool? = true
+    ) {
+        self.id = id
+        self.title = title
+        self.usedPercent = usedPercent
+        self.windowMinutes = windowMinutes
+        self.resetsAt = resetsAt
+        self.resetKnown = resetKnown
+    }
 
     var resetText: String {
         resetsAt.formatted(.relative(presentation: .named, unitsStyle: .abbreviated))

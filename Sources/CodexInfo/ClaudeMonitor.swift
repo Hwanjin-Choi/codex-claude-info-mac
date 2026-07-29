@@ -13,6 +13,8 @@ final class ClaudeMonitor: ObservableObject {
     private let usageReader = ClaudeUsageReader()
     private var pollingTask: Task<Void, Never>?
     private var lastUsageRead = Date.distantPast
+    private var lastDesktopRead = Date.distantPast
+    private var desktopSnapshot: ClaudeDesktopSnapshot?
     private let reportsKey = "claudeResetReports"
     private let snapshotKey = "claudeUsageSnapshot"
 
@@ -76,6 +78,11 @@ final class ClaudeMonitor: ObservableObject {
 
     func refresh() async {
         loadCapturedState()
+        if Date().timeIntervalSince(lastDesktopRead) >= 5 {
+            desktopSnapshot = await usageReader.readDesktopSnapshot()
+            lastDesktopRead = Date()
+        }
+        mergeDesktopSnapshot()
         if Date().timeIntervalSince(lastUsageRead) >= 30 {
             dailyUsage = await usageReader.readLastEightDays()
             lastUsageRead = Date()
@@ -123,6 +130,59 @@ final class ClaudeMonitor: ObservableObject {
             }
         ].compactMap { $0 }
         recordResets()
+    }
+
+    private func mergeDesktopSnapshot() {
+        guard let desktop = desktopSnapshot else { return }
+        let base = capturedState
+        capturedState = ClaudeCapturedState(
+            updatedAt: max(base?.updatedAt ?? .distantPast, desktop.updatedAt),
+            sessionID: desktop.sessionID ?? base?.sessionID,
+            sessionName: desktop.sessionName ?? base?.sessionName,
+            modelID: desktop.modelID ?? base?.modelID,
+            modelName: desktop.modelID.map(displayName) ?? base?.modelName,
+            effort: desktop.effort ?? base?.effort,
+            thinkingEnabled: base?.thinkingEnabled,
+            contextPercentage: base?.contextPercentage,
+            fiveHour: base?.fiveHour,
+            sevenDay: base?.sevenDay,
+            totalCostUSD: base?.totalCostUSD,
+            durationMS: base?.durationMS,
+            workState: base?.workState ?? "idle",
+            lastError: base?.lastError
+        )
+
+        var merged: [UsageLimit] = []
+        if let percentage = desktop.fiveHourPercentage {
+            let exact = base?.fiveHour
+            merged.append(UsageLimit(
+                id: "claude-five-hour", title: "5시간 사용량", usedPercent: percentage,
+                windowMinutes: 300, resetsAt: exact?.resetsAt ?? .distantFuture,
+                resetKnown: exact == nil ? false : true
+            ))
+        }
+        if let percentage = desktop.sevenDayPercentage {
+            let exact = base?.sevenDay
+            merged.append(UsageLimit(
+                id: "claude-seven-day", title: "7일 사용량", usedPercent: percentage,
+                windowMinutes: 10_080, resetsAt: exact?.resetsAt ?? .distantFuture,
+                resetKnown: exact == nil ? false : true
+            ))
+        }
+        if !merged.isEmpty {
+            limits = merged
+            if merged.allSatisfy({ $0.resetKnown == false }) {
+                latestReport = "Desktop 사용률 감지됨 · 정확한 리셋 시각은 Claude Code 실행 후 표시됩니다."
+            }
+        }
+    }
+
+    private func displayName(for modelID: String) -> String {
+        modelID
+            .replacingOccurrences(of: "[1m]", with: "")
+            .split(separator: "-")
+            .map { $0.capitalized }
+            .joined(separator: " ")
     }
 
     private func recordResets() {
