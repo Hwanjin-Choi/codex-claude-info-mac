@@ -4,7 +4,7 @@ set -euo pipefail
 cd "${0:A:h}/.."
 zsh scripts/build-app.sh
 
-RELEASE_NAME="Codex-Info-0.1.0"
+RELEASE_NAME="Codex-Info-0.2.0"
 DMG_PATH="$PWD/dist/$RELEASE_NAME.dmg"
 ZIP_PATH="$PWD/dist/$RELEASE_NAME.zip"
 STAGE_DIR="$(mktemp -d)"

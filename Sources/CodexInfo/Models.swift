@@ -23,7 +23,7 @@ struct ResetReport: Codable {
     let message: String
 }
 
-struct DailyUsage: Identifiable, Codable, Equatable {
+struct DailyUsage: Identifiable, Codable, Equatable, Sendable {
     let date: Date
     let tokens: Int
 
@@ -39,12 +39,13 @@ struct UsageSummary {
 }
 
 enum WorkState {
-    case checking, working, recentlyCompleted, idle, failed
+    case checking, working, waiting, recentlyCompleted, idle, failed
 
     var title: String {
         switch self {
         case .checking: "상태 확인 중"
         case .working: "Codex 작업 중"
+        case .waiting: "승인·입력 대기"
         case .recentlyCompleted: "최근 작업 완료"
         case .idle: "대기 중"
         case .failed: "연결 오류"
@@ -55,6 +56,7 @@ enum WorkState {
         switch self {
         case .checking: "로컬 작업 상태를 확인하고 있습니다."
         case .working: "Codex가 응답을 생성하거나 명령을 실행 중입니다."
+        case .waiting: "사용자의 승인이나 입력을 기다리고 있습니다."
         case .recentlyCompleted: "방금 작업이 갱신되었습니다."
         case .idle: "새로운 작업을 기다리고 있습니다."
         case .failed: "Codex App Server 연결을 확인하세요."
@@ -65,6 +67,7 @@ enum WorkState {
         switch self {
         case .checking: "circle.dotted"
         case .working: "bolt.fill"
+        case .waiting: "hand.raised.fill"
         case .recentlyCompleted: "checkmark.circle.fill"
         case .idle: "pause.circle"
         case .failed: "exclamationmark.triangle.fill"

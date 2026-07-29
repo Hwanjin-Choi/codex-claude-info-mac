@@ -3,23 +3,29 @@ import SwiftUI
 @main
 struct CodexInfoApp: App {
     @StateObject private var monitor: CodexMonitor
+    @StateObject private var claudeMonitor: ClaudeMonitor
+    @AppStorage("selectedProvider") private var selectedProvider = "codex"
 
     init() {
         let monitor = CodexMonitor()
+        let claudeMonitor = ClaudeMonitor()
         _monitor = StateObject(wrappedValue: monitor)
+        _claudeMonitor = StateObject(wrappedValue: claudeMonitor)
         Task { await monitor.start() }
+        Task { await claudeMonitor.start() }
     }
 
     var body: some Scene {
         MenuBarExtra {
             MenuContent()
                 .environmentObject(monitor)
+                .environmentObject(claudeMonitor)
         } label: {
             HStack(spacing: 4) {
                 LucideGauge()
                     .stroke(style: StrokeStyle(lineWidth: 1.7, lineCap: .round, lineJoin: .round))
                     .frame(width: 17, height: 17)
-                Text(monitor.menuTitle)
+                Text(selectedProvider == "claude" ? claudeMonitor.menuTitle : monitor.menuTitle)
             }
         }
         .menuBarExtraStyle(.window)

@@ -1,7 +1,7 @@
 <div align="center">
   <img src="Resources/AppIcon.svg" width="128" alt="Codex Info icon">
   <h1>Codex Info for macOS</h1>
-  <p>Codex 사용량, 리셋 시각, 모델과 작업 상태를 메뉴바에서 확인하는 작은 앱입니다.</p>
+  <p>Codex와 Claude Code 사용량, 리셋 시각, 모델과 작업 상태를 메뉴바에서 확인하는 작은 앱입니다.</p>
   <p>
     <a href="https://github.com/Hwanjin-Choi/codex-info-mac/releases/latest">
       <strong>최신 버전 다운로드</strong>
@@ -18,12 +18,15 @@
 - 작업 중·최근 완료·대기·연결 오류 상태
 - 사용량 80%·90% 및 리셋 임박 알림
 - 상태에 반응하는 Codex 펫과 크기·속도 설정
+- 한 앱에서 Codex와 Claude 탭 전환
+- Claude Code 작업 중·승인 대기·완료·오류 감지
+- Claude 5시간·7일 사용률, 모델, effort, 컨텍스트 표시
 - 30초 자동 갱신
 
 ## 설치 방법
 
 1. [Releases](https://github.com/Hwanjin-Choi/codex-info-mac/releases/latest)에서
-   `Codex-Info-0.1.0.dmg`를 다운로드합니다.
+   최신 `Codex-Info-*.dmg`를 다운로드합니다.
 2. DMG를 열고 `Codex Info.app`을 `Applications` 폴더로 드래그합니다.
 3. 응용 프로그램 폴더에서 **Codex Info**를 실행합니다.
 4. 메뉴바의 계기판 아이콘을 누르면 사용량을 확인할 수 있습니다.
@@ -37,6 +40,8 @@
 - macOS 14 Sonoma 이상
 - ChatGPT 또는 Codex 앱/CLI 설치
 - Codex에 ChatGPT 계정으로 로그인된 상태
+- Claude 탭 사용 시 Claude Code 2.1.196 이상
+- Claude 사용률은 Claude.ai Pro/Max 로그인 계정에서 제공
 
 ## 데이터와 개인정보
 
@@ -46,6 +51,10 @@
 
 리셋 이력과 펫 설정은 해당 Mac의 `UserDefaults`에만 저장됩니다. 배포 파일에는
 제작자의 계정, 로그인 정보 또는 사용량이 포함되지 않습니다.
+
+Claude 탭에서 **연동 설치**를 누르면 `~/.claude/settings.json`을 먼저 백업한 뒤
+status line과 hooks 항목을 추가합니다. 기존 hooks는 삭제하지 않으며, 기존 status
+line 명령이 있으면 그 출력을 그대로 유지합니다.
 
 ## 소스에서 빌드
 

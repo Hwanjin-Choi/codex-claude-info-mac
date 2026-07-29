@@ -32,19 +32,20 @@ struct PetView: View {
 }
 
 enum PetState {
-    case idle, working, failed
+    case idle, working, waiting, failed
 
     var row: Int {
         switch self {
         case .idle: 0
         case .working: 7
+        case .waiting: 6
         case .failed: 5
         }
     }
 
     var frameCount: Int {
         switch self {
-        case .idle, .working: 6
+        case .idle, .working, .waiting: 6
         case .failed: 8
         }
     }

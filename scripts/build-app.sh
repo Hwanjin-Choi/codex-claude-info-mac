@@ -11,6 +11,7 @@ rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS/MacOS"
 mkdir -p "$CONTENTS/Resources"
 cp ".build/release/CodexInfo" "$CONTENTS/MacOS/CodexInfo"
+cp ".build/release/ClaudeInfoBridge" "$CONTENTS/MacOS/ClaudeInfoBridge"
 cp "Resources/Info.plist" "$CONTENTS/Info.plist"
 PET_SOURCE="$HOME/.codex/pets/jjanggu-codi/spritesheet.webp"
 if [[ -f "$PET_SOURCE" ]]; then
