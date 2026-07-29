@@ -61,7 +61,7 @@ actor CodexAppServer {
         }
 
         _ = try await request("initialize", params: JSONDictionary([
-            "clientInfo": ["name": "codex-info", "title": "Codex Info", "version": "0.1.0"],
+            "clientInfo": ["name": "codex-claude-info", "title": "Codex & Claude Info", "version": "0.2.0"],
             "capabilities": ["experimentalApi": true]
         ]))
         try sendNotification("initialized", params: [:])

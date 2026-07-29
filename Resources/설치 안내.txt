@@ -1,7 +1,7 @@
-Codex Info 설치 방법
+Codex & Claude Info 설치 방법
 
-1. Codex Info.app을 오른쪽의 Applications 폴더로 드래그합니다.
-2. 응용 프로그램 폴더에서 Codex Info를 실행합니다.
+1. Codex & Claude Info.app을 오른쪽의 Applications 폴더로 드래그합니다.
+2. 응용 프로그램 폴더에서 Codex & Claude Info를 실행합니다.
 3. macOS가 개발자를 확인할 수 없다고 표시하면 앱을 Control-클릭한 뒤
    '열기'를 선택하고, 다시 '열기'를 누릅니다.
 

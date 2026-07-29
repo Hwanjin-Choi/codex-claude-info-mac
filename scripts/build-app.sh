@@ -5,7 +5,7 @@ cd "${0:A:h}/.."
 swift build -c release
 zsh scripts/generate-icons.sh
 
-APP_DIR="$PWD/dist/Codex Info.app"
+APP_DIR="$PWD/dist/Codex & Claude Info.app"
 CONTENTS="$APP_DIR/Contents"
 rm -rf "$APP_DIR"
 mkdir -p "$CONTENTS/MacOS"

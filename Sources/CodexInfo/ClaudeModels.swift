@@ -22,6 +22,16 @@ struct ClaudeCapturedState: Codable {
     var lastError: String?
 }
 
+struct ClaudeDesktopSnapshot: Sendable {
+    var updatedAt: Date
+    var sessionID: String?
+    var sessionName: String?
+    var modelID: String?
+    var effort: String?
+    var fiveHourPercentage: Double?
+    var sevenDayPercentage: Double?
+}
+
 enum ClaudeIntegrationState {
     case checking, notInstalled, installed, failed(String)
 
