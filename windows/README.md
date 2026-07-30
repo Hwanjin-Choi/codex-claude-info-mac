@@ -12,6 +12,7 @@ Windows 10/11 시스템 트레이에서 Codex와 Claude 사용량을 확인하�
 - Claude Desktop의 최신 세션 모델, effort, 작업 제목 감지
 - Claude Desktop의 5시간·7일 사용률 표시
 - 기존 짱구 코디 펫 표시
+- PNG/JPG/WebP/GIF 사용자 펫 선택, 영구 저장 및 기본 펫 복원
 - 창을 닫아도 트레이에서 계속 실행
 - NSIS `setup.exe`와 WiX `.msi` 패키징
 

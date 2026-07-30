@@ -41,6 +41,20 @@ nav button.selected { background: #1677ff; }
 }
 .pet.active { background-position-y: -622px; animation: sprite 1s steps(5) infinite; }
 .pet.failed { background-position-y: -444px; filter: grayscale(.8); animation: sprite-failed 1.3s steps(7) infinite; }
+.pet.custom {
+  background-position: center;
+  background-size: contain;
+  animation: none;
+}
+.pet-actions { display: flex; gap: 4px; margin-top: 7px; }
+.pet-actions button {
+  padding: 3px 7px;
+  border-radius: 5px;
+  background: rgba(255,255,255,.09);
+  color: #c8ccd3;
+  font-size: 9px;
+}
+.pet-actions button:hover { background: rgba(255,255,255,.15); }
 @keyframes sprite { to { background-position-x: -410px; } }
 @keyframes sprite-failed { to { background-position-x: -574px; } }
 

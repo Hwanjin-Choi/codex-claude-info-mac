@@ -35,6 +35,8 @@ const empty: Dashboard = {
 let selected: "codex" | "claude" = "codex";
 let data = empty;
 let loading = true;
+let customPetUrl: string | undefined;
+let customPetName = "짱구 코디";
 const isTauri = "__TAURI_INTERNALS__" in window;
 
 const app = document.querySelector<HTMLDivElement>("#app")!;
@@ -55,17 +57,28 @@ function countdown(timestamp?: number): string {
   return days ? `${days}일 ${hours}시간` : hours ? `${hours}시간 ${minutes}분` : `${minutes}분 후 리셋`;
 }
 
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, character => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
+  })[character]!);
+}
+
 function serviceView(service: Service): string {
   const petState = service.error ? "failed" : service.connected ? "active" : "idle";
+  const petStyle = customPetUrl ? ` style="background-image:url('${customPetUrl}')"` : "";
   return `
     <section class="hero">
-      <div class="pet ${petState}" aria-label="짱구 코디"></div>
+      <div class="pet ${customPetUrl ? "custom" : petState}"${petStyle} aria-label="${escapeHtml(customPetName)}"></div>
       <div>
         <h1>${selected === "codex" ? "Codex" : "Claude"} Info</h1>
-        <p>짱구 코디</p>
+        <p>${escapeHtml(customPetName)}</p>
         <span class="status ${service.connected ? "ok" : "warn"}">
           ${service.connected ? "● 연결됨" : "● 연결 대기"}
         </span>
+        <div class="pet-actions">
+          <button id="choose-pet">펫 변경</button>
+          ${customPetUrl ? '<button id="reset-pet">기본 펫</button>' : ""}
+        </div>
       </div>
     </section>
 
@@ -111,6 +124,7 @@ function render(): void {
         <button data-tab="claude" class="${selected === "claude" ? "selected" : ""}">Claude</button>
       </nav>
       ${serviceView(service)}
+      <input id="pet-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
       <footer>
         <span>${data.updated_at ? new Date(data.updated_at * 1000).toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"}) : "업데이트 전"}</span>
         <button id="refresh">↻ 새로고침</button>
@@ -126,6 +140,68 @@ function render(): void {
   });
   document.querySelector<HTMLButtonElement>("#refresh")!.onclick = refresh;
   document.querySelector<HTMLButtonElement>("#quit")!.onclick = () => invoke("quit_app");
+  const petInput = document.querySelector<HTMLInputElement>("#pet-file")!;
+  document.querySelector<HTMLButtonElement>("#choose-pet")!.onclick = () => petInput.click();
+  petInput.onchange = () => {
+    const file = petInput.files?.[0];
+    if (file) void savePet(file);
+  };
+  const resetButton = document.querySelector<HTMLButtonElement>("#reset-pet");
+  if (resetButton) resetButton.onclick = () => void resetPet();
+}
+
+function petDatabase(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open("codex-claude-info", 1);
+    request.onupgradeneeded = () => request.result.createObjectStore("settings");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function readStoredPet(): Promise<void> {
+  const database = await petDatabase();
+  const stored = await new Promise<{ blob: Blob; name: string } | undefined>((resolve, reject) => {
+    const request = database.transaction("settings").objectStore("settings").get("pet");
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+  if (stored?.blob) {
+    customPetUrl = URL.createObjectURL(stored.blob);
+    customPetName = stored.name || "사용자 펫";
+  }
+}
+
+async function savePet(file: File): Promise<void> {
+  if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
+    window.alert("PNG, JPG, WebP, GIF 이미지를 15MB 이하로 선택해 주세요.");
+    return;
+  }
+  const displayName = file.name.replace(/\.[^.]+$/, "") || "사용자 펫";
+  const database = await petDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const request = database.transaction("settings", "readwrite")
+      .objectStore("settings").put({ blob: file, name: displayName }, "pet");
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+  if (customPetUrl) URL.revokeObjectURL(customPetUrl);
+  customPetUrl = URL.createObjectURL(file);
+  customPetName = displayName;
+  render();
+}
+
+async function resetPet(): Promise<void> {
+  const database = await petDatabase();
+  await new Promise<void>((resolve, reject) => {
+    const request = database.transaction("settings", "readwrite").objectStore("settings").delete("pet");
+    request.onsuccess = () => resolve();
+    request.onerror = () => reject(request.error);
+  });
+  if (customPetUrl) URL.revokeObjectURL(customPetUrl);
+  customPetUrl = undefined;
+  customPetName = "짱구 코디";
+  render();
 }
 
 async function refresh(): Promise<void> {
@@ -175,5 +251,6 @@ async function refresh(): Promise<void> {
 }
 
 render();
+readStoredPet().then(render).catch(() => undefined);
 refresh();
 setInterval(refresh, 30_000);
