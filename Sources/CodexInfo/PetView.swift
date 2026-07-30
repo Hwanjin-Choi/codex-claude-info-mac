@@ -40,6 +40,7 @@ struct PetView: View {
             }
         }
         .frame(width: size, height: size * 1.08)
+        .clipped()
         .accessibilityLabel(customPetPath.isEmpty ? "짱구 코디" : "사용자 펫")
     }
 
@@ -93,9 +94,11 @@ private struct AnimatedPetImage: NSViewRepresentable {
     let animated: Bool
 
     func makeNSView(context: Context) -> NSImageView {
-        let view = NSImageView()
+        let view = PetImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
         view.imageAlignment = .alignCenter
+        view.wantsLayer = true
+        view.layer?.masksToBounds = true
         view.animates = animated
         view.image = NSImage(contentsOf: url)
         return view
@@ -104,6 +107,12 @@ private struct AnimatedPetImage: NSViewRepresentable {
     func updateNSView(_ view: NSImageView, context: Context) {
         view.image = NSImage(contentsOf: url)
         view.animates = animated
+    }
+}
+
+private final class PetImageView: NSImageView {
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: NSView.noIntrinsicMetric)
     }
 }
 
