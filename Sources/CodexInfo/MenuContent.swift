@@ -8,6 +8,7 @@ struct MenuContent: View {
     @AppStorage("petSize") private var petSize = 88.0
     @AppStorage("petSpeed") private var petSpeed = 1.0
     @AppStorage("petAnimated") private var petAnimated = true
+    @AppStorage("customPetName") private var customPetName = "짱구 코디"
     @AppStorage("usageAlerts") private var usageAlerts = true
     @State private var settingsExpanded = false
 
@@ -67,7 +68,8 @@ struct MenuContent: View {
             PetView(state: petState, size: petSize, speed: petSpeed, animated: petAnimated)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Codex Info").font(.title3.weight(.bold))
-                Text("짱구 코디").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Text(customPetName).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Label(monitor.health.title, systemImage: monitor.health.symbol)
                     .font(.caption2).foregroundStyle(monitor.health.color)
             }
@@ -182,6 +184,7 @@ struct MenuContent: View {
             .buttonStyle(.plain)
 
             if settingsExpanded {
+                PetPickerControls()
                 Toggle("애니메이션", isOn: $petAnimated)
                 Toggle("사용량·리셋 알림", isOn: $usageAlerts)
                 LabeledContent("크기") {
@@ -222,6 +225,7 @@ private struct ClaudeDashboard: View {
     @AppStorage("petSize") private var petSize = 88.0
     @AppStorage("petSpeed") private var petSpeed = 1.0
     @AppStorage("petAnimated") private var petAnimated = true
+    @AppStorage("customPetName") private var customPetName = "짱구 코디"
     @State private var settingsExpanded = false
 
     var body: some View {
@@ -247,7 +251,8 @@ private struct ClaudeDashboard: View {
             PetView(state: petState, size: petSize, speed: petSpeed, animated: petAnimated)
             VStack(alignment: .leading, spacing: 3) {
                 Text("Claude Info").font(.title3.weight(.bold))
-                Text("짱구 코디").font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                Text(customPetName).font(.caption.weight(.medium)).foregroundStyle(.secondary)
+                    .lineLimit(1)
                 Label(monitor.integration.title, systemImage: monitor.integrationIsInstalled ? "checkmark.circle.fill" : "link.badge.plus")
                     .font(.caption2)
                     .foregroundStyle(monitor.integrationIsInstalled ? .green : .orange)
@@ -370,6 +375,7 @@ private struct ClaudeDashboard: View {
             }
             .buttonStyle(.plain)
             if settingsExpanded {
+                PetPickerControls()
                 Toggle("애니메이션", isOn: $petAnimated)
                 LabeledContent("크기") { Slider(value: $petSize, in: 64...112, step: 8).frame(width: 145) }
                 LabeledContent("속도") { Slider(value: $petSpeed, in: 0.5...2, step: 0.25).frame(width: 145) }
