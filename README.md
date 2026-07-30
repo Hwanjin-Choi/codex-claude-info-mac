@@ -72,6 +72,14 @@ open "dist/Codex & Claude Info.app"
 zsh scripts/package-release.sh
 ```
 
+## Windows POC
+
+Windows 10/11 시스템 트레이 버전은 [`windows/`](windows/)에 있습니다.
+Codex app-server 사용량과 Claude Desktop 로컬 세션을 읽으며, GitHub Actions에서
+NSIS `setup.exe`와 WiX `.msi` 설치 파일을 생성합니다.
+
+자세한 개발·빌드 방법은 [`windows/README.md`](windows/README.md)를 참고하세요.
+
 ## 아이콘
 
 [Lucide Gauge](https://lucide.dev/icons/gauge)를 사용했으며 라이선스 고지는
