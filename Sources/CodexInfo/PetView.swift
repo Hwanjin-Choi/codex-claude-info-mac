@@ -93,6 +93,13 @@ private struct AnimatedPetImage: NSViewRepresentable {
     let url: URL
     let animated: Bool
 
+    final class Coordinator {
+        var loadedURL: URL?
+        var animated: Bool?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> NSImageView {
         let view = PetImageView()
         view.imageScaling = .scaleProportionallyUpOrDown
@@ -101,12 +108,20 @@ private struct AnimatedPetImage: NSViewRepresentable {
         view.layer?.masksToBounds = true
         view.animates = animated
         view.image = NSImage(contentsOf: url)
+        context.coordinator.loadedURL = url
+        context.coordinator.animated = animated
         return view
     }
 
     func updateNSView(_ view: NSImageView, context: Context) {
-        view.image = NSImage(contentsOf: url)
-        view.animates = animated
+        if context.coordinator.loadedURL != url {
+            view.image = NSImage(contentsOf: url)
+            context.coordinator.loadedURL = url
+        }
+        if context.coordinator.animated != animated {
+            view.animates = animated
+            context.coordinator.animated = animated
+        }
     }
 }
 

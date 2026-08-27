@@ -1,11 +1,11 @@
 import Foundation
 
-struct ClaudeLimitState: Codable {
+struct ClaudeLimitState: Codable, Equatable {
     var usedPercentage: Double
     var resetsAt: Date
 }
 
-struct ClaudeCapturedState: Codable {
+struct ClaudeCapturedState: Codable, Equatable {
     var updatedAt: Date
     var sessionID: String?
     var sessionName: String?
@@ -22,7 +22,7 @@ struct ClaudeCapturedState: Codable {
     var lastError: String?
 }
 
-struct ClaudeDesktopSnapshot: Sendable {
+struct ClaudeDesktopSnapshot: Sendable, Equatable {
     var updatedAt: Date
     var sessionID: String?
     var sessionName: String?
