@@ -97,7 +97,7 @@ struct MenuContent: View {
         VStack(alignment: .leading, spacing: 9) {
             SectionTitle("어제 사용량", symbol: "chart.bar.fill")
             HStack(spacing: 0) {
-                Metric(value: monitor.yesterdayTokens.compactTokens, label: "어제 토큰")
+                Metric(value: monitor.usageAvailable ? monitor.yesterdayTokens.compactTokens : "확인 불가", label: "어제 토큰")
                 Metric(value: "\(monitor.usageSummary.currentStreakDays)일", label: "연속 사용")
                 Metric(value: monitor.usageSummary.longestTurnSeconds.durationText, label: "최장 작업")
             }

@@ -1,6 +1,14 @@
 import Foundation
 
 actor ClaudeUsageReader {
+    private struct CachedUsage {
+        let modifiedAt: Date
+        let cutoff: Date
+        let totals: [Date: Int]
+    }
+
+    private var usageCache: [URL: CachedUsage] = [:]
+
     func readLastEightDays() -> [DailyUsage] {
         let cutoff = Calendar.current.date(byAdding: .day, value: -8, to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
         var totals: [Date: Int] = [:]
@@ -9,6 +17,7 @@ actor ClaudeUsageReader {
             home.appendingPathComponent(".claude/projects", isDirectory: true),
             home.appendingPathComponent("Library/Application Support/Claude/local-agent-mode-sessions", isDirectory: true)
         ]
+        var seenURLs = Set<URL>()
 
         for root in roots {
             guard let enumerator = FileManager.default.enumerator(
@@ -20,13 +29,27 @@ actor ClaudeUsageReader {
                 guard url.pathExtension == "jsonl",
                       let values = try? url.resourceValues(forKeys: [.contentModificationDateKey, .isRegularFileKey]),
                       values.isRegularFile == true,
-                      values.contentModificationDate ?? .distantPast >= cutoff else { continue }
-                aggregate(url: url, cutoff: cutoff, into: &totals)
+                      let modified = values.contentModificationDate,
+                      modified >= cutoff else { continue }
+                seenURLs.insert(url)
+                if let cached = usageCache[url], cached.modifiedAt == modified, cached.cutoff == cutoff {
+                    merge(cached.totals, into: &totals)
+                } else {
+                    var fileTotals: [Date: Int] = [:]
+                    aggregate(url: url, cutoff: cutoff, into: &fileTotals)
+                    usageCache[url] = CachedUsage(modifiedAt: modified, cutoff: cutoff, totals: fileTotals)
+                    merge(fileTotals, into: &totals)
+                }
             }
         }
+        usageCache = usageCache.filter { seenURLs.contains($0.key) }
 
         return totals.map { DailyUsage(date: $0.key, tokens: $0.value) }
             .sorted { $0.date < $1.date }
+    }
+
+    private func merge(_ source: [Date: Int], into destination: inout [Date: Int]) {
+        for (date, tokens) in source { destination[date, default: 0] += tokens }
     }
 
     func readDesktopSnapshot() -> ClaudeDesktopSnapshot? {

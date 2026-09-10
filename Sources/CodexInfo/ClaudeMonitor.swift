@@ -12,8 +12,10 @@ final class ClaudeMonitor: ObservableObject {
 
     private let usageReader = ClaudeUsageReader()
     private var pollingTask: Task<Void, Never>?
+    private var isRefreshing = false
     private var lastUsageRead = Date.distantPast
     private var lastDesktopRead = Date.distantPast
+    private var lastCapturedModification: Date?
     private var desktopSnapshot: ClaudeDesktopSnapshot?
     private let reportsKey = "claudeResetReports"
     private let snapshotKey = "claudeUsageSnapshot"
@@ -67,24 +69,31 @@ final class ClaudeMonitor: ObservableObject {
     func start() async {
         guard pollingTask == nil else { return }
         checkIntegration()
-        await refresh()
         pollingTask = Task { [weak self] in
+            await self?.refresh()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
                 await self?.refresh()
             }
         }
     }
 
     func refresh() async {
-        loadCapturedState()
-        if Date().timeIntervalSince(lastDesktopRead) >= 5 {
-            desktopSnapshot = await usageReader.readDesktopSnapshot()
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
+        let capturedChanged = loadCapturedState()
+        var desktopChanged = false
+        if Date().timeIntervalSince(lastDesktopRead) >= 15 {
+            let snapshot = await usageReader.readDesktopSnapshot()
+            desktopChanged = snapshot != desktopSnapshot
+            desktopSnapshot = snapshot
             lastDesktopRead = Date()
         }
-        mergeDesktopSnapshot()
+        if capturedChanged || desktopChanged { mergeDesktopSnapshot() }
         if Date().timeIntervalSince(lastUsageRead) >= 30 {
-            dailyUsage = await usageReader.readLastEightDays()
+            let usage = await usageReader.readLastEightDays()
+            if usage != dailyUsage { dailyUsage = usage }
             lastUsageRead = Date()
         }
     }
@@ -113,13 +122,17 @@ final class ClaudeMonitor: ObservableObject {
         integration = text.contains("ClaudeInfoBridge") ? .installed : .notInstalled
     }
 
-    private func loadCapturedState() {
+    @discardableResult
+    private func loadCapturedState() -> Bool {
         let url = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/Claude Info/state.json")
-        guard let data = try? Data(contentsOf: url),
-              let state = try? JSONDecoder().decode(ClaudeCapturedState.self, from: data) else { return }
-        capturedState = state
-        limits = [
+        guard let modified = try? url.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate,
+              modified != lastCapturedModification,
+              let data = try? Data(contentsOf: url),
+              let state = try? JSONDecoder().decode(ClaudeCapturedState.self, from: data) else { return false }
+        lastCapturedModification = modified
+        if capturedState != state { capturedState = state }
+        let newLimits = [
             state.fiveHour.map {
                 UsageLimit(id: "claude-five-hour", title: "5시간 사용량", usedPercent: $0.usedPercentage,
                            windowMinutes: 300, resetsAt: $0.resetsAt)
@@ -129,13 +142,15 @@ final class ClaudeMonitor: ObservableObject {
                            windowMinutes: 10_080, resetsAt: $0.resetsAt)
             }
         ].compactMap { $0 }
+        if limits != newLimits { limits = newLimits }
         recordResets()
+        return true
     }
 
     private func mergeDesktopSnapshot() {
         guard let desktop = desktopSnapshot else { return }
         let base = capturedState
-        capturedState = ClaudeCapturedState(
+        let mergedState = ClaudeCapturedState(
             updatedAt: max(base?.updatedAt ?? .distantPast, desktop.updatedAt),
             sessionID: desktop.sessionID ?? base?.sessionID,
             sessionName: desktop.sessionName ?? base?.sessionName,
@@ -151,6 +166,7 @@ final class ClaudeMonitor: ObservableObject {
             workState: base?.workState ?? "idle",
             lastError: base?.lastError
         )
+        if capturedState != mergedState { capturedState = mergedState }
 
         var merged: [UsageLimit] = []
         if let percentage = desktop.fiveHourPercentage {
@@ -170,7 +186,7 @@ final class ClaudeMonitor: ObservableObject {
             ))
         }
         if !merged.isEmpty {
-            limits = merged
+            if limits != merged { limits = merged }
             if merged.allSatisfy({ $0.resetKnown == false }) {
                 latestReport = "Desktop 사용률 감지됨 · 정확한 리셋 시각은 Claude Code 실행 후 표시됩니다."
             }

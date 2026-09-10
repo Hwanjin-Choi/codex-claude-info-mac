@@ -14,6 +14,7 @@ final class CodexMonitor: ObservableObject {
     @Published var reasoningEffort = "확인 중"
     @Published var usageSummary = UsageSummary()
     @Published var dailyUsage: [DailyUsage] = []
+    @Published var usageAvailable = false
 
     private let server = CodexAppServer()
     private let localReader = LocalCodexReader()
@@ -44,10 +45,10 @@ final class CodexMonitor: ObservableObject {
 
     func start() async {
         guard timerTask == nil else { return }
-        await refresh()
         timerTask = Task { [weak self] in
+            await self?.refresh()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(30))
+                do { try await Task.sleep(for: .seconds(30)) } catch { return }
                 await self?.refresh()
             }
         }
@@ -59,16 +60,17 @@ final class CodexMonitor: ObservableObject {
         defer { isRefreshing = false }
         do {
             async let rateResponse = server.request("account/rateLimits/read")
-            async let modelResponse = server.request("model/list", params: JSONDictionary(["limit": 100, "includeHidden": false]))
-            async let usageResponse = server.request("account/usage/read")
+            async let modelResponse = try? server.request("model/list", params: JSONDictionary(["limit": 100, "includeHidden": false]))
+            async let usageResponse = try? server.request("account/usage/read")
             async let localStatus = localReader.readStatus()
             let (rateResult, modelResult, usageResult, status) = try await (rateResponse, modelResponse, usageResponse, localStatus)
             limits = parseLimits(rateResult.value)
-            modelName = status.model ?? configuredModel() ?? defaultModel(from: modelResult.value) ?? "Codex 권장 모델"
+            modelName = status.model ?? configuredModel() ?? defaultModel(from: modelResult?.value ?? [:]) ?? "Codex 권장 모델"
             reasoningEffort = displayEffort(status.effort)
             workState = status.workState
             currentTaskTitle = status.taskTitle
-            parseUsage(usageResult.value)
+            usageAvailable = usageResult?.value["dailyUsageBuckets"] is [[String: Any]]
+            if let usageResult { parseUsage(usageResult.value) }
             recordResets(newLimits: limits)
             scheduleUsageNotifications()
             health = .healthy

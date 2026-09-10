@@ -1,66 +1,12 @@
-# Codex & Claude Info — Windows POC
+# Codex & Claude Info for Windows
 
-Windows 10/11 시스템 트레이에서 Codex와 Claude 사용량을 확인하는 Tauri 2 기반
-1차 POC입니다.
+Windows용 시스템 트레이 앱입니다. 일반 사용자는 [최신 릴리스](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/latest)의 `*-windows-x64-setup.exe`를 설치하세요.
 
-## 현재 구현
+- [Windows 상세 설치 방법](../docs/INSTALL.md#windows)
+- [Codex CLI 설치·로그인](../docs/INSTALL.md#codex-setup)
+- [Mac/Windows 기능 비교](../README.md#어떤-정보가-보이나요)
+- [개발·빌드 안내](../docs/DEVELOPMENT.md)
 
-- 트레이 아이콘을 클릭해 390px 대시보드 열기
-- Codex와 Claude 탭 전환
-- Codex `app-server`의 사용률, 리셋 시각, 토큰 사용량 표시
-- `%USERPROFILE%\.codex\config.toml`에서 Codex 모델 감지
-- Claude Desktop의 최신 세션 모델, effort, 작업 제목 감지
-- Claude Desktop의 5시간·7일 사용률 표시
-- 기존 짱구 코디 펫 표시
-- PNG/JPG/WebP/GIF 사용자 펫 선택, 로컬 저장 및 기본 펫 복원
-- 창을 닫아도 트레이에서 계속 실행
-- NSIS `setup.exe`와 WiX `.msi` 패키징
+Windows 10 22H2 / Windows 11 x64용입니다. 설치 파일은 현재 사용자 설치, 한국어/영어 안내, WebView2 bootstrapper를 포함합니다. MSI는 제공하지 않습니다.
 
-## 요구 사항
-
-- Windows 10/11
-- WebView2 Runtime
-- Windows용 Codex CLI가 설치되어 있고 `codex`가 `PATH`에 등록된 상태
-- Claude 정보 사용 시 Claude Desktop 또는 Claude Code
-- Node.js 22 이상
-- Rust stable 및 Microsoft C++ Build Tools
-
-## 개발 실행
-
-PowerShell에서:
-
-```powershell
-cd windows
-npm install
-npm run tauri dev
-```
-
-앱은 처음에 창을 숨긴 상태로 시작합니다. 작업 표시줄 알림 영역의 아이콘을
-클릭하면 대시보드가 열립니다.
-
-## 설치 파일 만들기
-
-```powershell
-cd windows
-npm ci
-npm run tauri build
-```
-
-결과물:
-
-- `src-tauri\target\release\bundle\nsis\*-setup.exe`
-- `src-tauri\target\release\bundle\msi\*.msi`
-
-GitHub의 **Windows POC** Actions 워크플로를 수동 실행해도 두 설치 파일을
-Artifact로 받을 수 있습니다.
-
-## POC 한계
-
-- Claude Desktop의 로컬 저장 구조는 공식 API가 아니므로 Desktop 업데이트에
-  따라 경로 또는 필드가 달라질 수 있습니다.
-- Claude 리셋 시각은 Desktop의 사용률 기록에 포함되지 않아 `확인 중`으로
-  표시합니다.
-- Claude CLI가 WSL 안에만 설치된 경우 WSL 경로 자동 탐색은 다음 단계에서
-  추가해야 합니다.
-- Windows 코드 서명 인증서가 없으므로 배포 설치 파일에 SmartScreen 경고가
-  표시될 수 있습니다.
+Claude Desktop의 사용률·최근 모델은 로컬 기록이 있으면 표시합니다. Windows v1.0.0에는 Claude Code hooks, Claude 토큰, 정확한 Claude 리셋 시각, macOS의 차트·알림·리셋 이력이 포함되지 않습니다.

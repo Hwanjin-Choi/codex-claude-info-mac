@@ -1,0 +1,142 @@
+name: Build and release
+
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  macos:
+    name: macOS universal
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check app-server lifecycle
+        run: zsh scripts/check-app-server.sh
+      - name: Build universal DMG and ZIP
+        run: zsh scripts/package-release.sh
+      - name: Check bundle and disk image
+        run: |
+          APP="dist/Codex & Claude Info.app"
+          codesign --verify --deep --strict "$APP"
+          lipo "$APP/Contents/MacOS/CodexInfo" -verify_arch arm64 x86_64
+          lipo "$APP/Contents/MacOS/ClaudeInfoBridge" -verify_arch arm64 x86_64
+          test -s "$APP/Contents/Resources/jjanggu-codi.webp"
+          hdiutil verify dist/*.dmg
+          "$APP/Contents/MacOS/CodexInfo" &
+          APP_PID=$!
+          sleep 5
+          kill -0 "$APP_PID"
+          kill "$APP_PID"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos-installers
+          if-no-files-found: error
+          path: |
+            dist/*.dmg
+            dist/*.zip
+
+  windows:
+    name: Windows x64 installer
+    runs-on: windows-latest
+    timeout-minutes: 35
+    defaults:
+      run:
+        working-directory: windows
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: windows/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: windows/src-tauri
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - run: cargo fmt --manifest-path src-tauri/Cargo.toml --check
+      - run: cargo test --manifest-path src-tauri/Cargo.toml --locked
+      - run: cargo clippy --manifest-path src-tauri/Cargo.toml --locked --all-targets -- -D warnings
+      - run: npm run tauri -- build --ci --bundles nsis
+      - name: Test silent install, launch, duplicate launch and uninstall
+        run: |
+          $installer = Get-ChildItem src-tauri/target/release/bundle/nsis/*-setup.exe | Select-Object -First 1
+          $installDir = Join-Path $env:RUNNER_TEMP 'Codex Info Install Test'
+          $result = Start-Process $installer.FullName -ArgumentList '/S', "/D=$installDir" -Wait -PassThru
+          if ($result.ExitCode -ne 0) { throw "Installer failed: $($result.ExitCode)" }
+          $binary = Join-Path $installDir 'codex-claude-info.exe'
+          if (!(Test-Path $binary)) { throw 'Installed application is missing' }
+          try {
+            $app = Start-Process $binary -PassThru
+            Start-Sleep -Seconds 5
+            if ($app.HasExited) { throw 'Application exited during startup' }
+            $second = Start-Process $binary -PassThru
+            Start-Sleep -Seconds 3
+            $instances = @(Get-Process codex-claude-info -ErrorAction SilentlyContinue | Where-Object Path -eq $binary)
+            if ($instances.Count -ne 1) { throw "Expected one instance, got $($instances.Count)" }
+          } finally {
+            Get-Process codex-claude-info -ErrorAction SilentlyContinue | Where-Object Path -eq $binary | Stop-Process -Force
+            $uninstaller = Join-Path $installDir 'uninstall.exe'
+            if (Test-Path $uninstaller) {
+              Start-Process $uninstaller -ArgumentList '/S' -Wait
+              Start-Sleep -Seconds 3
+            }
+          }
+          if (Test-Path $binary) { throw 'Uninstall did not remove the executable' }
+      - name: Name release installer
+        run: |
+          $version = (Get-Content src-tauri/tauri.conf.json | ConvertFrom-Json).version
+          New-Item -ItemType Directory -Force release | Out-Null
+          Copy-Item src-tauri/target/release/bundle/nsis/*-setup.exe "release/Codex-Claude-Info-$version-windows-x64-setup.exe"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-installer
+          if-no-files-found: error
+          path: windows/release/*.exe
+
+  publish:
+    name: Publish verified installers
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [macos, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: release
+          merge-multiple: true
+      - name: Check version and create checksums
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(node -p "require('./windows/package.json').version")
+          test "$RELEASE_TAG" = "v$VERSION"
+          test -f "release/Codex-Claude-Info-$VERSION-macos-universal.dmg"
+          test -f "release/Codex-Claude-Info-$VERSION-macos-universal.zip"
+          test -f "release/Codex-Claude-Info-$VERSION-windows-x64-setup.exe"
+          cd release
+          sha256sum *.dmg *.zip *.exe > SHA256SUMS.txt
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" release/* --verify-tag \
+            --title "Codex & Claude Info $RELEASE_TAG · macOS + Windows" \
+            --notes-file docs/RELEASE_NOTES.md --latest

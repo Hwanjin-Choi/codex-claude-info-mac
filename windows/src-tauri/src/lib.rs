@@ -6,7 +6,6 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
-use tauri_plugin_autostart::MacosLauncher;
 
 #[tauri::command]
 async fn get_dashboard() -> Dashboard {
@@ -20,13 +19,21 @@ fn quit_app(app: tauri::AppHandle) {
     app.exit(0);
 }
 
+#[tauri::command]
+fn hide_window(window: tauri::WebviewWindow) {
+    let _ = window.hide();
+}
+
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_autostart::init(
-            MacosLauncher::LaunchAgent,
-            Some(vec!["--hidden"]),
-        ))
-        .invoke_handler(tauri::generate_handler![get_dashboard, quit_app])
+        .plugin(tauri_plugin_single_instance::init(|app, _, _| {
+            show_window(app)
+        }))
+        .invoke_handler(tauri::generate_handler![
+            get_dashboard,
+            quit_app,
+            hide_window
+        ])
         .setup(|app| {
             let show = MenuItem::with_id(app, "show", "정보 보기", true, None::<&str>)?;
             let quit = MenuItem::with_id(app, "quit", "종료", true, None::<&str>)?;
@@ -52,6 +59,9 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+            if !std::env::args().any(|arg| arg == "--hidden") {
+                show_window(app.handle());
+            }
             Ok(())
         })
         .on_window_event(|window, event| {
