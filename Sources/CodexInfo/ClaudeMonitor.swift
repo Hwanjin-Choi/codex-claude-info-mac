@@ -12,6 +12,7 @@ final class ClaudeMonitor: ObservableObject {
 
     private let usageReader = ClaudeUsageReader()
     private var pollingTask: Task<Void, Never>?
+    private var isRefreshing = false
     private var lastUsageRead = Date.distantPast
     private var lastDesktopRead = Date.distantPast
     private var lastCapturedModification: Date?
@@ -68,16 +69,19 @@ final class ClaudeMonitor: ObservableObject {
     func start() async {
         guard pollingTask == nil else { return }
         checkIntegration()
-        await refresh()
         pollingTask = Task { [weak self] in
+            await self?.refresh()
             while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(2))
+                do { try await Task.sleep(for: .seconds(2)) } catch { return }
                 await self?.refresh()
             }
         }
     }
 
     func refresh() async {
+        guard !isRefreshing else { return }
+        isRefreshing = true
+        defer { isRefreshing = false }
         let capturedChanged = loadCapturedState()
         var desktopChanged = false
         if Date().timeIntervalSince(lastDesktopRead) >= 15 {

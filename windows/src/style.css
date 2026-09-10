@@ -6,10 +6,10 @@
 }
 
 * { box-sizing: border-box; }
-body { margin: 0; min-width: 390px; min-height: 680px; background: #17191d; }
+body { margin: 0; min-width: 300px; background: #17191d; }
 button { font: inherit; color: inherit; border: 0; cursor: pointer; }
 main {
-  width: 390px;
+  width: 100%;
   min-height: 680px;
   padding: 14px;
   background:
@@ -17,6 +17,11 @@ main {
     linear-gradient(160deg, #202328, #131519);
   border: 1px solid #3b3e44;
 }
+
+.window-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; color: #9da2aa; font-size: 10px; }
+.window-bar button { background: transparent; padding: 4px 8px; }
+button:disabled { opacity: .5; cursor: wait; }
+button:focus-visible { outline: 2px solid #61b9ff; outline-offset: 2px; }
 
 nav { display: flex; justify-content: center; align-items: center; gap: 4px; margin-bottom: 18px; }
 nav span { margin-right: 8px; font-size: 12px; font-weight: 700; }

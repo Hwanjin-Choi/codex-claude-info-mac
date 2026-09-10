@@ -2,15 +2,22 @@ Codex & Claude Info 설치 방법
 
 1. Codex & Claude Info.app을 오른쪽의 Applications 폴더로 드래그합니다.
 2. 응용 프로그램 폴더에서 Codex & Claude Info를 실행합니다.
-3. macOS가 개발자를 확인할 수 없다고 표시하면 앱을 Control-클릭한 뒤
-   '열기'를 선택하고, 다시 '열기'를 누릅니다.
+3. 첫 실행이 차단되면 시스템 설정 > 개인정보 보호 및 보안에서
+   이 앱의 '확인 없이 열기 / Open Anyway'를 선택합니다.
+4. 화면 오른쪽 위 메뉴 막대의 계기판 아이콘을 누릅니다.
+   일반 앱처럼 Dock 아이콘이나 큰 창이 항상 표시되지는 않습니다.
 
 요구 사항
 
-- macOS 14 이상
+- macOS 14 이상, Apple Silicon 또는 Intel Mac
 - ChatGPT 또는 Codex 앱/CLI가 설치되어 있고 Codex에 로그인된 상태
 
 개인정보
 
 앱에는 제작자의 계정, 로그인 정보, 사용량이 포함되어 있지 않습니다.
 실행한 Mac에 로그인된 Codex 계정의 사용량만 로컬에서 표시합니다.
+
+이 앱은 OpenAI/Anthropic 공식 제품이 아니며 Apple Developer ID 공증이 없습니다.
+
+설치·로그인·Claude 연동·업데이트·삭제·문제 해결:
+https://github.com/Hwanjin-Choi/codex-claude-info-mac/blob/main/docs/INSTALL.md

@@ -4,8 +4,9 @@ use std::{
     env, fs,
     io::{BufRead, BufReader, Write},
     path::{Path, PathBuf},
-    process::{Child, ChildStdin, ChildStdout, Command, Stdio},
-    time::{SystemTime, UNIX_EPOCH},
+    process::{Child, ChildStdin, Command, Stdio},
+    sync::mpsc::{self, Receiver},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 use walkdir::WalkDir;
 
@@ -23,8 +24,7 @@ pub struct Service {
     model: Option<String>,
     effort: Option<String>,
     task: Option<String>,
-    yesterday_tokens: u64,
-    week_tokens: u64,
+    daily_usage: Option<Vec<Value>>,
     limits: Vec<Limit>,
     error: Option<String>,
 }
@@ -68,12 +68,7 @@ fn collect_codex() -> Service {
                     .or_else(|| value.pointer("/result/dailyUsageBuckets"))
                     .and_then(Value::as_array);
                 if let Some(buckets) = buckets {
-                    let mut tokens: Vec<u64> = buckets
-                        .iter()
-                        .filter_map(|item| item.get("tokens").and_then(Value::as_u64))
-                        .collect();
-                    service.week_tokens = tokens.iter().rev().take(7).sum();
-                    service.yesterday_tokens = tokens.pop().unwrap_or(0);
+                    service.daily_usage = Some(buckets.clone());
                 }
             }
         }
@@ -83,6 +78,20 @@ fn collect_codex() -> Service {
 }
 
 fn parse_codex_limits(value: &Value) -> Vec<Limit> {
+    if let Some(buckets) = value.get("rateLimitsByLimitId").and_then(Value::as_object) {
+        return buckets
+            .iter()
+            .flat_map(|(name, bucket)| {
+                let mut limits = parse_codex_limits(bucket);
+                if name != "codex" {
+                    for limit in &mut limits {
+                        limit.title = format!("{name} · {}", limit.title);
+                    }
+                }
+                limits
+            })
+            .collect();
+    }
     let root = value.get("rateLimits").unwrap_or(value);
     [("primary", "단기 사용량"), ("secondary", "주간 사용량")]
         .into_iter()
@@ -99,35 +108,71 @@ fn parse_codex_limits(value: &Value) -> Vec<Limit> {
 }
 
 struct AppServer {
-    _child: Child,
+    child: Child,
     input: ChildStdin,
-    output: BufReader<ChildStdout>,
+    output: Receiver<Result<Value, String>>,
+}
+
+impl Drop for AppServer {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
 }
 
 impl AppServer {
     fn start() -> Result<Self, String> {
-        let mut child = Command::new("codex")
-            .arg("app-server")
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .creation_flags_no_window()
-            .spawn()
-            .map_err(|_| {
-                "Codex CLI를 찾을 수 없습니다. Windows용 Codex를 설치하고 로그인하세요.".to_string()
-            })?;
+        let mut child = Command::new(
+            find_codex()
+                .ok_or("Windows용 Codex CLI를 설치하고 로그인한 후 이 앱을 다시 실행하세요.")?,
+        )
+        .arg("app-server")
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .creation_flags_no_window()
+        .spawn()
+        .map_err(|_| {
+            "Codex CLI를 찾을 수 없습니다. Windows용 Codex를 설치하고 로그인하세요.".to_string()
+        })?;
         let input = child.stdin.take().ok_or("Codex 입력 연결 실패")?;
-        let output = BufReader::new(child.stdout.take().ok_or("Codex 출력 연결 실패")?);
+        let mut output = BufReader::new(child.stdout.take().ok_or("Codex 출력 연결 실패")?);
+        let (sender, receiver) = mpsc::sync_channel(1);
+        std::thread::spawn(move || {
+            use std::io::Read;
+            loop {
+                let mut line = String::new();
+                // Bound a malformed/oversized reply instead of retaining an unlimited line.
+                match output
+                    .by_ref()
+                    .take(8 * 1024 * 1024 + 1)
+                    .read_line(&mut line)
+                {
+                    Ok(0) | Err(_) => break,
+                    Ok(_) if line.len() > 8 * 1024 * 1024 => {
+                        let _ = sender.send(Err("Codex 응답 크기 초과".into()));
+                        break;
+                    }
+                    Ok(_) => {
+                        if let Ok(value) = serde_json::from_str(&line) {
+                            if sender.send(Ok(value)).is_err() {
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        });
         let mut server = Self {
-            _child: child,
+            child,
             input,
-            output,
+            output: receiver,
         };
         server.request(
             1,
             "initialize",
             json!({
-                "clientInfo": {"name": "codex-claude-info", "title": "Codex & Claude Info", "version": "0.1.0"},
+                "clientInfo": {"name": "codex-claude-info", "title": "Codex & Claude Info", "version": env!("CARGO_PKG_VERSION")},
                 "capabilities": {"experimentalApi": true}
             }),
         )?;
@@ -137,21 +182,14 @@ impl AppServer {
 
     fn request(&mut self, id: u64, method: &str, params: Value) -> Result<Value, String> {
         self.write(&json!({"id": id, "method": method, "params": params}))?;
-        let mut line = String::new();
+        let deadline = Instant::now() + Duration::from_secs(15);
         loop {
-            line.clear();
-            if self
+            let value = self
                 .output
-                .read_line(&mut line)
-                .map_err(|e| e.to_string())?
-                == 0
-            {
-                return Err("Codex 연결이 종료되었습니다.".into());
-            }
-            let value: Value = match serde_json::from_str(&line) {
-                Ok(value) => value,
-                Err(_) => continue,
-            };
+                .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+                .map_err(|_| {
+                    "Codex 응답 시간 초과 또는 연결 종료. 로그인 상태를 확인하세요.".to_string()
+                })??;
             if value.get("id").and_then(Value::as_u64) != Some(id) {
                 continue;
             }
@@ -218,11 +256,18 @@ fn newest_claude_session(root: &Path) -> Option<(Option<String>, Option<String>,
         if entry.path().extension().and_then(|value| value.to_str()) != Some("json") {
             continue;
         }
-        let modified = entry.metadata().ok()?.modified().ok()?;
+        let Some(modified) = entry.metadata().ok().and_then(|m| m.modified().ok()) else {
+            continue;
+        };
         if newest.as_ref().is_some_and(|(date, _)| *date >= modified) {
             continue;
         }
-        let value: Value = serde_json::from_slice(&fs::read(entry.path()).ok()?).ok()?;
+        let Some(value) = fs::read(entry.path())
+            .ok()
+            .and_then(|data| serde_json::from_slice::<Value>(&data).ok())
+        else {
+            continue;
+        };
         if value.get("sessionId").is_some() {
             newest = Some((modified, value));
         }
@@ -260,13 +305,47 @@ fn claude_plan_usage(path: &Path) -> Option<(f64, f64)> {
 fn configured_codex_model() -> Option<String> {
     let home = env::var_os("USERPROFILE").map(PathBuf::from)?;
     let text = fs::read_to_string(home.join(".codex").join("config.toml")).ok()?;
-    text.lines().find_map(|line| {
-        let line = line.trim();
-        line.strip_prefix("model").and_then(|rest| {
-            rest.split_once('=')
-                .map(|(_, value)| value.trim().trim_matches('"').to_owned())
+    text.lines()
+        .take_while(|line| !line.trim().starts_with('['))
+        .find_map(|line| {
+            let line = line.trim();
+            let (key, value) = line.split_once('=')?;
+            (key.trim() == "model").then(|| value.trim().trim_matches('"').to_owned())
         })
-    })
+}
+
+fn find_codex() -> Option<PathBuf> {
+    let mut roots: Vec<PathBuf> = env::var_os("PATH")
+        .map(|paths| env::split_paths(&paths).collect())
+        .unwrap_or_default();
+    if let Some(home) = env::var_os("USERPROFILE") {
+        roots.push(PathBuf::from(home).join(".local/bin"));
+    }
+    if let Some(appdata) = env::var_os("APPDATA") {
+        roots.push(PathBuf::from(appdata).join("npm"));
+    }
+    if let Some(local) = env::var_os("LOCALAPPDATA") {
+        roots.push(PathBuf::from(local).join("Programs/OpenAI/Codex/bin"));
+    }
+    for root in &roots {
+        let executable = root.join(if cfg!(windows) { "codex.exe" } else { "codex" });
+        if executable.is_file() {
+            return Some(executable);
+        }
+    }
+    // npm exposes a .cmd shim; execute its native binary to avoid a persistent shell.
+    for root in roots {
+        for entry in WalkDir::new(root.join("node_modules/@openai"))
+            .max_depth(9)
+            .into_iter()
+            .filter_map(Result::ok)
+        {
+            if entry.file_type().is_file() && entry.file_name() == "codex.exe" {
+                return Some(entry.into_path());
+            }
+        }
+    }
+    None
 }
 
 fn now() -> u64 {
@@ -298,5 +377,24 @@ trait NoWindow {
 impl NoWindow for Command {
     fn creation_flags_no_window(&mut self) -> &mut Self {
         self
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_named_buckets_and_does_not_invent_missing_limits() {
+        let limits = parse_codex_limits(&json!({"rateLimitsByLimitId": {
+            "codex": {"primary": {"usedPercent": 12.5, "windowDurationMins": 300, "resetsAt": 123}},
+            "extra": {"secondary": {"usedPercent": 42, "windowDurationMins": 10080}}
+        }}));
+        assert_eq!(limits.len(), 2);
+        assert_eq!(limits[0].used_percent, 12.5);
+        assert_eq!(limits[0].resets_at, Some(123));
+        assert_eq!(limits[1].title, "extra · 주간 사용량");
+        assert_eq!(limits[1].resets_at, None);
+        assert!(parse_codex_limits(&json!({"rateLimits": null})).is_empty());
     }
 }

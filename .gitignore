@@ -5,6 +5,7 @@ outputs/
 .swiftpm/
 windows/node_modules/
 windows/dist/
+windows/release/
 windows/src-tauri/target/
 windows/src-tauri/gen/
 windows/src-tauri/icons/*

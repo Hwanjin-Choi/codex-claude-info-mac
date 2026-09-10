@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { tokenSummary, escapeHtml } from "./format";
 import "./style.css";
 
 type Limit = {
@@ -14,8 +15,7 @@ type Service = {
   model?: string;
   effort?: string;
   task?: string;
-  yesterday_tokens: number;
-  week_tokens: number;
+  daily_usage?: { startDate: string; tokens: number }[] | null;
   limits: Limit[];
   error?: string;
 };
@@ -27,14 +27,15 @@ type Dashboard = {
 };
 
 const empty: Dashboard = {
-  codex: { connected: false, source: "대기 중", yesterday_tokens: 0, week_tokens: 0, limits: [] },
-  claude: { connected: false, source: "대기 중", yesterday_tokens: 0, week_tokens: 0, limits: [] },
+  codex: { connected: false, source: "대기 중", limits: [] },
+  claude: { connected: false, source: "대기 중", limits: [] },
   updated_at: 0
 };
 
 let selected: "codex" | "claude" = "codex";
 let data = empty;
 let loading = true;
+let inFlight = false;
 let customPetUrl: string | undefined;
 let customPetName = "짱구 코디";
 const isTauri = "__TAURI_INTERNALS__" in window;
@@ -57,13 +58,8 @@ function countdown(timestamp?: number): string {
   return days ? `${days}일 ${hours}시간` : hours ? `${hours}시간 ${minutes}분` : `${minutes}분 후 리셋`;
 }
 
-function escapeHtml(value: string): string {
-  return value.replace(/[&<>"']/g, character => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#039;"
-  })[character]!);
-}
-
 function serviceView(service: Service): string {
+  const tokens = tokenSummary(service.daily_usage);
   const petState = service.error ? "failed" : service.connected ? "active" : "idle";
   const petStyle = customPetUrl ? ` style="background-image:url('${customPetUrl}')"` : "";
   return `
@@ -84,33 +80,33 @@ function serviceView(service: Service): string {
 
     <section class="card task">
       <span class="bolt">⚡</span>
-      <div><strong>${service.task || "최근 작업 대기 중"}</strong><small>${service.source}</small></div>
+      <div><strong>${escapeHtml(service.task || "최근 작업 대기 중")}</strong><small>${escapeHtml(service.source)}</small></div>
       ${loading ? '<span class="spinner"></span>' : ""}
     </section>
 
     ${service.limits.length
       ? service.limits.map(limit => `
         <section class="card limit">
-          <div class="row"><strong>${limit.title}</strong><span>${Math.round(limit.used_percent)}% 사용</span></div>
-          <div class="track"><i style="width:${Math.min(100, limit.used_percent)}%"></i></div>
+          <div class="row"><strong>${escapeHtml(limit.title)}</strong><span>${Math.round(limit.used_percent)}% 사용</span></div>
+          <div class="track"><i style="width:${Math.max(0, Math.min(100, limit.used_percent))}%"></i></div>
           <div class="row muted"><span>${limit.window_minutes >= 1440 ? `${limit.window_minutes / 1440}일` : `${limit.window_minutes / 60}시간`} 한도</span><span>◷ ${countdown(limit.resets_at)}</span></div>
         </section>`).join("")
       : `<section class="card empty">사용량 정보를 기다리고 있습니다.</section>`}
 
-    ${service.error ? `<section class="card error">⚠ ${service.error}</section>` : ""}
+    ${service.error ? `<section class="card error">⚠ ${escapeHtml(service.error)}</section>` : ""}
 
     <section class="card metrics">
       <h2>▥ 사용량</h2>
       <div class="metric-grid">
-        <div><b>${compact(service.yesterday_tokens)}</b><span>어제 토큰</span></div>
-        <div><b>${compact(service.week_tokens)}</b><span>최근 7일</span></div>
+        <div><b>${tokens ? compact(tokens.yesterday) : "확인 불가"}</b><span>어제 토큰</span></div>
+        <div><b>${tokens ? compact(tokens.week) : "확인 불가"}</b><span>최근 7일</span></div>
         <div><b>${service.connected ? "정상" : "대기"}</b><span>연결 상태</span></div>
       </div>
     </section>
 
     <section class="card model">
       <h2>▣ 모델</h2>
-      <div class="row"><div><strong>${service.model || "모델 확인 중"}</strong><small>현재 ${selected === "codex" ? "Codex" : "Claude"} 모델</small></div><em>${service.effort || "기본 추론"}</em></div>
+      <div class="row"><div><strong>${escapeHtml(service.model || "모델 확인 중")}</strong><small>${selected === "codex" ? "Codex 설정 파일의 모델" : "최근 Claude Desktop 세션 모델"}</small></div><em>${escapeHtml(service.effort || "기본 추론")}</em></div>
     </section>`;
 }
 
@@ -118,6 +114,7 @@ function render(): void {
   const service = data[selected];
   app.innerHTML = `
     <main>
+      <div class="window-bar"><span>Codex &amp; Claude Info · 1.0.0</span><button id="hide" aria-label="트레이로 숨기기">—</button></div>
       <nav>
         <span>서비스</span>
         <button data-tab="codex" class="${selected === "codex" ? "selected" : ""}">Codex</button>
@@ -127,7 +124,7 @@ function render(): void {
       <input id="pet-file" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden />
       <footer>
         <span>${data.updated_at ? new Date(data.updated_at * 1000).toLocaleTimeString("ko-KR", {hour: "2-digit", minute: "2-digit"}) : "업데이트 전"}</span>
-        <button id="refresh">↻ 새로고침</button>
+        <button id="refresh" ${loading ? "disabled" : ""}>↻ 새로고침</button>
         <button id="quit">종료</button>
       </footer>
     </main>`;
@@ -140,14 +137,15 @@ function render(): void {
   });
   document.querySelector<HTMLButtonElement>("#refresh")!.onclick = refresh;
   document.querySelector<HTMLButtonElement>("#quit")!.onclick = () => invoke("quit_app");
+  document.querySelector<HTMLButtonElement>("#hide")!.onclick = () => { if (isTauri) void invoke("hide_window"); };
   const petInput = document.querySelector<HTMLInputElement>("#pet-file")!;
   document.querySelector<HTMLButtonElement>("#choose-pet")!.onclick = () => petInput.click();
   petInput.onchange = () => {
     const file = petInput.files?.[0];
-    if (file) void savePet(file);
+    if (file) void savePet(file).catch(() => window.alert("펫 이미지를 저장하지 못했습니다."));
   };
   const resetButton = document.querySelector<HTMLButtonElement>("#reset-pet");
-  if (resetButton) resetButton.onclick = () => void resetPet();
+  if (resetButton) resetButton.onclick = () => void resetPet().catch(() => window.alert("펫을 복원하지 못했습니다."));
 }
 
 function petDatabase(): Promise<IDBDatabase> {
@@ -165,6 +163,8 @@ async function readStoredPet(): Promise<void> {
     const request = database.transaction("settings").objectStore("settings").get("pet");
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
+    request.transaction!.oncomplete = () => database.close();
+    request.transaction!.onabort = () => { database.close(); reject(request.transaction?.error); };
   });
   if (stored?.blob) {
     customPetUrl = URL.createObjectURL(stored.blob);
@@ -173,7 +173,7 @@ async function readStoredPet(): Promise<void> {
 }
 
 async function savePet(file: File): Promise<void> {
-  if (!file.type.startsWith("image/") || file.size > 15 * 1024 * 1024) {
+  if (!["image/png", "image/jpeg", "image/webp", "image/gif"].includes(file.type) || file.size > 15 * 1024 * 1024) {
     window.alert("PNG, JPG, WebP, GIF 이미지를 15MB 이하로 선택해 주세요.");
     return;
   }
@@ -182,7 +182,8 @@ async function savePet(file: File): Promise<void> {
   await new Promise<void>((resolve, reject) => {
     const request = database.transaction("settings", "readwrite")
       .objectStore("settings").put({ blob: file, name: displayName }, "pet");
-    request.onsuccess = () => resolve();
+    request.transaction!.oncomplete = () => { database.close(); resolve(); };
+    request.transaction!.onabort = () => { database.close(); reject(request.transaction?.error); };
     request.onerror = () => reject(request.error);
   });
   if (customPetUrl) URL.revokeObjectURL(customPetUrl);
@@ -195,7 +196,8 @@ async function resetPet(): Promise<void> {
   const database = await petDatabase();
   await new Promise<void>((resolve, reject) => {
     const request = database.transaction("settings", "readwrite").objectStore("settings").delete("pet");
-    request.onsuccess = () => resolve();
+    request.transaction!.oncomplete = () => { database.close(); resolve(); };
+    request.transaction!.onabort = () => { database.close(); reject(request.transaction?.error); };
     request.onerror = () => reject(request.error);
   });
   if (customPetUrl) URL.revokeObjectURL(customPetUrl);
@@ -205,39 +207,14 @@ async function resetPet(): Promise<void> {
 }
 
 async function refresh(): Promise<void> {
+  if (inFlight) return;
   if (!isTauri) {
-    data = {
-      codex: {
-        connected: true,
-        source: "Codex app-server · POC 미리보기",
-        model: "gpt-5.6-codex",
-        effort: "High",
-        task: "Windows POC 작업 중",
-        yesterday_tokens: 128_400,
-        week_tokens: 759_400,
-        limits: [
-          { title: "단기 사용량", used_percent: 26, window_minutes: 300, resets_at: Date.now() / 1000 + 8_200 }
-        ]
-      },
-      claude: {
-        connected: true,
-        source: "Claude Desktop · POC 미리보기",
-        model: "Claude Fable 5",
-        effort: "Xhigh",
-        task: "최근 세션 감지됨",
-        yesterday_tokens: 93_200,
-        week_tokens: 481_000,
-        limits: [
-          { title: "5시간 사용량", used_percent: 55, window_minutes: 300 },
-          { title: "7일 사용량", used_percent: 11, window_minutes: 10_080 }
-        ]
-      },
-      updated_at: Date.now() / 1000
-    };
+    data.codex.source = data.claude.source = "브라우저 미리보기 · 실제 데이터는 설치된 앱에서 확인하세요.";
     loading = false;
     render();
     return;
   }
+  inFlight = true;
   loading = true;
   render();
   try {
@@ -245,6 +222,7 @@ async function refresh(): Promise<void> {
   } catch (error) {
     data[selected].error = String(error);
   } finally {
+    inFlight = false;
     loading = false;
     render();
   }
@@ -253,4 +231,5 @@ async function refresh(): Promise<void> {
 render();
 readStoredPet().then(render).catch(() => undefined);
 refresh();
-setInterval(refresh, 30_000);
+setInterval(() => { if (!document.hidden) void refresh(); }, 30_000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) void refresh(); });
