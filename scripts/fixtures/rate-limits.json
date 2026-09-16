@@ -1,0 +1,18 @@
+{
+  "rateLimitsByLimitId": {
+    "base_model_inference": {
+      "limitName": "gpt-reserve",
+      "primary": { "usedPercent": 0, "windowDurationMins": 10080, "resetsAt": 2000000000 },
+      "secondary": null
+    },
+    "codex": {
+      "primary": { "usedPercent": 36, "windowDurationMins": 10080, "resetsAt": 1999700000 },
+      "secondary": null
+    },
+    "codex_bengalfox": {
+      "limitName": "GPT-5.3-Codex-Spark",
+      "primary": { "usedPercent": 0, "windowDurationMins": 300, "resetsAt": 1999500000 },
+      "secondary": { "usedPercent": 0, "windowDurationMins": 10080, "resetsAt": 2000000000 }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # Codex & Claude Info 설치 가이드
 
-**v1.0.0** 기준입니다. 일반 사용자는 개발 도구 없이 설치 파일로 설치할 수 있습니다.
+**v1.0.1** 기준입니다. 일반 사용자는 개발 도구 없이 설치 파일로 설치할 수 있습니다.
 
 ## 목차
 
@@ -25,9 +25,9 @@
 
 | 파일 | 용도 |
 |---|---|
-| `Codex-Claude-Info-1.0.0-macos-universal.dmg` | Mac 설치용. M 시리즈·Intel 공용 |
-| `Codex-Claude-Info-1.0.0-macos-universal.zip` | 동일한 Mac 앱의 압축본. DMG 대신 선택 가능 |
-| `Codex-Claude-Info-1.0.0-windows-x64-setup.exe` | Windows 설치용. Intel/AMD 64비트 |
+| `Codex-Claude-Info-1.0.1-macos-universal.dmg` | Mac 설치용. M 시리즈·Intel 공용 |
+| `Codex-Claude-Info-1.0.1-macos-universal.zip` | 동일한 Mac 앱의 압축본. DMG 대신 선택 가능 |
+| `Codex-Claude-Info-1.0.1-windows-x64-setup.exe` | Windows 설치용. Intel/AMD 64비트 |
 | `SHA256SUMS.txt` | 다운로드 검증용. 설치 프로그램이 아님 |
 | `Source code (zip / tar.gz)` | 개발자용 소스. 일반 사용자는 필요 없음 |
 
@@ -69,7 +69,7 @@ ZIP을 받은 경우: 압축 해제 → 생성된 `.app`을 응용 프로그램 
 
 ### 설치 프로그램 실행
 
-1. 다운로드 폴더에서 `Codex-Claude-Info-1.0.0-windows-x64-setup.exe`를 실행합니다.
+1. 다운로드 폴더에서 `Codex-Claude-Info-1.0.1-windows-x64-setup.exe`를 실행합니다.
 2. 언어 선택 창에서 **Korean / 한국어**를 선택합니다.
 3. 안내에 따라 다음 단계로 이동합니다. 기본 설치 위치를 그대로 사용해도 됩니다.
 4. **설치**를 누릅니다. 현재 Windows 사용자 계정에 설치됩니다.
@@ -136,6 +136,8 @@ CLI 탐색 위치는 Homebrew의 `/opt/homebrew/bin`, `/usr/local/bin`, `~/.loca
 
 ### 정상 연결 확인
 
+- Mac 상태바의 `Codex 주간 …%`와 `Codex · 주간 사용량` 카드는 일반 Codex의 7일 한도입니다. 이전 버전에서 `base_model_inference`의 0%가 상태바에 보였다면 v1.0.1 이상으로 업데이트하세요.
+- Luna Reserve (예비)와 Spark는 별도 한도입니다. 예비 한도의 0%가 일반 Codex 사용량 초기화를 뜻하지 않습니다. 주간 데이터가 없을 때 상태바의 `—`는 확인 불가를 뜻하며 0%와 구분합니다.
 - 사용률·리셋 시간이 나타나면 한도 조회가 성공한 상태입니다.
 - 토큰은 해당 Codex 버전이 토큰 조회 기능을 제공할 때만 표시됩니다. 다른 카드가 연결되어도 토큰은 확인 불가일 수 있습니다.
 - ChatGPT 계정 한도와 API 키 종량제 결제는 별개입니다. API 키 로그인에서는 이 앱이 기대하는 계정 사용률이 없을 수 있습니다.
@@ -162,7 +164,7 @@ CLI 탐색 위치는 Homebrew의 `/opt/homebrew/bin`, `/usr/local/bin`, `~/.loca
 
 연동된 Code가 제공하는 경우 모델·컨텍스트·작업 상태·5시간/7일 한도·정확한 리셋 시각이 표시됩니다. 계정·Code 버전에 따라 일부 값이 없을 수 있습니다. 기존 설정은 유효한 JSON이어야 합니다.
 
-Windows v1.0.0에는 연동 설치 버튼, Claude 토큰·컨텍스트·정확한 리셋 시각·Code hooks 지원이 없습니다. 미지원 토큰을 0으로 추측하지 않습니다.
+Windows v1.0.1에는 연동 설치 버튼, Claude 토큰·컨텍스트·정확한 리셋 시각·Code hooks 지원이 없습니다. 미지원 토큰을 0으로 추측하지 않습니다.
 
 <a id="usage"></a>
 ## 6. 펫과 사용 방법
@@ -275,14 +277,14 @@ Codex·Claude 본체와 계정·대화 기록은 별개이므로 삭제하지 �
 
 ```bash
 cd ~/Downloads
-shasum -a 256 Codex-Claude-Info-1.0.0-macos-universal.dmg
+shasum -a 256 Codex-Claude-Info-1.0.1-macos-universal.dmg
 ```
 
 **Windows PowerShell:**
 
 ```powershell
 cd "$env:USERPROFILE\Downloads"
-Get-FileHash .\Codex-Claude-Info-1.0.0-windows-x64-setup.exe -Algorithm SHA256
+Get-FileHash .\Codex-Claude-Info-1.0.1-windows-x64-setup.exe -Algorithm SHA256
 ```
 
 출력 해시를 `SHA256SUMS.txt`에서 해당 파일의 해시와 비교합니다. 다르면 실행하지 말고 공식 릴리스에서 다시 받습니다.

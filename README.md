@@ -9,11 +9,11 @@
 
 **사용자는 소스를 빌드할 필요가 없습니다.** 아래 설치 파일 하나를 받으세요.
 
-| 내 컴퓨터 | v1.0.0 설치 파일 | 요구 사항 |
+| 내 컴퓨터 | v1.0.1 설치 파일 | 요구 사항 |
 |---|---|---|
-| Mac — Apple Silicon 또는 Intel | [macOS 공용 DMG](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/download/v1.0.0/Codex-Claude-Info-1.0.0-macos-universal.dmg) | macOS 14 Sonoma 이상 |
-| Windows — Intel/AMD 64비트 | [Windows setup.exe](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/download/v1.0.0/Codex-Claude-Info-1.0.0-windows-x64-setup.exe) | Windows 10 22H2 / Windows 11, x64 |
-| Mac — 압축본이 필요한 경우 | [macOS ZIP](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/download/v1.0.0/Codex-Claude-Info-1.0.0-macos-universal.zip) | DMG와 동일한 앱 |
+| Mac — Apple Silicon 또는 Intel | [macOS 공용 DMG](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/download/v1.0.1/Codex-Claude-Info-1.0.1-macos-universal.dmg) | macOS 14 Sonoma 이상 |
+| Windows — Intel/AMD 64비트 | [Windows setup.exe](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/download/v1.0.1/Codex-Claude-Info-1.0.1-windows-x64-setup.exe) | Windows 10 22H2 / Windows 11, x64 |
+| Mac — 압축본이 필요한 경우 | [macOS ZIP](https://github.com/Hwanjin-Choi/codex-claude-info-mac/releases/download/v1.0.1/Codex-Claude-Info-1.0.1-macos-universal.zip) | DMG와 동일한 앱 |
 
 Windows ARM64 전용 파일은 제공하지 않습니다. Mac에는 두 CPU용 실행 파일이 함께 들어 있습니다. GitHub의 **Source code (zip)**는 설치 파일이 아닙니다.
 
@@ -29,7 +29,7 @@ Windows ARM64 전용 파일은 제공하지 않습니다. Mac에는 두 CPU용 �
 
 **Windows**
 
-1. `Codex-Claude-Info-1.0.0-windows-x64-setup.exe`를 실행합니다.
+1. `Codex-Claude-Info-1.0.1-windows-x64-setup.exe`를 실행합니다.
 2. 한국어 설치 안내에 따라 **설치 → 마침**을 누릅니다. 필요한 WebView2는 설치 프로그램이 설치를 시도하며 인터넷 연결이 필요할 수 있습니다.
 3. 시작 메뉴에서 앱을 실행합니다. 이후 작업 표시줄 오른쪽 계기판 아이콘 또는 `^` 안에서 다시 열 수 있습니다.
 
@@ -51,7 +51,9 @@ Windows ARM64 전용 파일은 제공하지 않습니다. Mac에는 두 CPU용 �
 | Claude 로컬 토큰 집계 | 지원하는 로컬 JSONL이 있으면 표시 | 미지원 — 확인 불가 표시 |
 | 사용자 펫 PNG/JPG/WebP/GIF | 지원 | 지원 |
 
-Windows v1.0.0은 설치 가능한 트레이 버전이며, macOS의 모든 기능을 동일하게 제공하지는 않습니다.
+Windows v1.0.1은 설치 가능한 트레이 버전이며, macOS의 모든 기능을 동일하게 제공하지는 않습니다.
+
+**v1.0.1 주간 한도 표시:** Mac 상태바는 `Codex 주간 36%`처럼 일반 Codex의 7일 사용률을 표시합니다. 주간 데이터가 없으면 `Codex 주간 —`로 표시합니다. 두 OS 모두 일반 Codex 주간 카드를 먼저 보여 주며, Luna Reserve 예비 한도와 Spark 한도는 별도 카드로 구분합니다. 0%는 해당 항목의 사용률이지 한도가 0이라는 뜻이 아닙니다.
 
 사용률은 **계정 한도의 사용률**이고 토큰은 별도 통계입니다. 값이 없으면 연결 대기·확인 불가로 표시될 수 있습니다. 연결됨은 해당 수집에 성공했다는 뜻이며, 모든 API의 정상 작동을 보장하지는 않습니다. 초기화 기록은 사용률 감소·리셋 시각 변화로 추정하며, 누가 초기화했는지를 판별하거나 초기화를 실행하지 않습니다.
 
@@ -64,7 +66,7 @@ Claude 펫은 이 앱의 장식이며 Claude 자체의 공식 펫 기능과 연�
 - [연결 실패·0 토큰·아이콘 문제 해결](docs/INSTALL.md#troubleshooting)
 - [메모리·CPU 진단](docs/INSTALL.md#performance)
 - [개발·검증·릴리스 방법](docs/DEVELOPMENT.md)
-- [v1.0.0 변경 사항](docs/RELEASE_NOTES.md)
+- [v1.0.1 변경 사항](docs/RELEASE_NOTES.md)
 
 ## 개인정보와 저장 위치
 

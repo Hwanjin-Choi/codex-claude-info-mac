@@ -90,7 +90,7 @@ actor CodexAppServer {
 
         do {
             _ = try await connectedRequest("initialize", params: JSONDictionary([
-                "clientInfo": ["name": "codex-claude-info", "title": "Codex & Claude Info", "version": "1.0.0"],
+                "clientInfo": ["name": "codex-claude-info", "title": "Codex & Claude Info", "version": "1.0.1"],
                 "capabilities": ["experimentalApi": true]
             ]))
             try sendNotification("initialized", params: [:])
