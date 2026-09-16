@@ -79,32 +79,71 @@ fn collect_codex() -> Service {
 
 fn parse_codex_limits(value: &Value) -> Vec<Limit> {
     if let Some(buckets) = value.get("rateLimitsByLimitId").and_then(Value::as_object) {
-        return buckets
+        let mut ordered: Vec<_> = buckets
             .iter()
-            .flat_map(|(name, bucket)| {
-                let mut limits = parse_codex_limits(bucket);
-                if name != "codex" {
-                    for limit in &mut limits {
-                        limit.title = format!("{name} · {}", limit.title);
-                    }
-                }
-                limits
-            })
+            .map(|(id, bucket)| (id.as_str(), bucket))
+            .collect();
+        if let Some(legacy) = value.get("rateLimits").filter(|bucket| bucket.is_object()) {
+            let id = legacy
+                .get("limitId")
+                .and_then(Value::as_str)
+                .unwrap_or("codex");
+            if !buckets.contains_key(id) {
+                ordered.push((id, legacy));
+            }
+        }
+        let priority = |id: &str| match id {
+            "codex" => 0,
+            "base_model_inference" => 2,
+            _ => 1,
+        };
+        ordered.sort_by(|(a, _), (b, _)| priority(a).cmp(&priority(b)).then_with(|| a.cmp(b)));
+        return ordered
+            .into_iter()
+            .flat_map(|(id, bucket)| parse_codex_bucket(bucket, id))
             .collect();
     }
     let root = value.get("rateLimits").unwrap_or(value);
-    [("primary", "단기 사용량"), ("secondary", "주간 사용량")]
+    let id = root
+        .get("limitId")
+        .and_then(Value::as_str)
+        .unwrap_or("codex");
+    parse_codex_bucket(root, id)
+}
+
+fn parse_codex_bucket(root: &Value, id: &str) -> Vec<Limit> {
+    let name = match id {
+        "codex" => "Codex",
+        "base_model_inference" => "Luna Reserve (예비)",
+        _ => root
+            .get("limitName")
+            .and_then(Value::as_str)
+            .map(str::trim)
+            .filter(|name| !name.is_empty())
+            .unwrap_or(id),
+    };
+    let mut limits: Vec<_> = ["primary", "secondary"]
         .into_iter()
-        .filter_map(|(key, title)| {
+        .filter_map(|key| {
             let item = root.get(key)?;
+            let minutes = item.get("windowDurationMins")?.as_u64()?;
+            let period = match minutes {
+                0 => return None,
+                10080 => "주간 사용량".into(),
+                m if m % 1440 == 0 => format!("{}일 사용량", m / 1440),
+                m if m % 60 == 0 => format!("{}시간 사용량", m / 60),
+                m => format!("{m}분 사용량"),
+            };
             Some(Limit {
-                title: title.into(),
+                title: format!("{name} · {period}"),
                 used_percent: item.get("usedPercent")?.as_f64()?,
-                window_minutes: item.get("windowDurationMins")?.as_u64()?,
+                window_minutes: minutes,
                 resets_at: item.get("resetsAt").and_then(Value::as_u64),
             })
         })
-        .collect()
+        .collect();
+    limits.sort_by_key(|limit| (limit.window_minutes != 10080, limit.window_minutes));
+    limits
 }
 
 struct AppServer {
@@ -383,6 +422,28 @@ impl NoWindow for Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn weekly_codex_precedes_spark_and_reserve() {
+        let value =
+            serde_json::from_str(include_str!("../../../scripts/fixtures/rate-limits.json"))
+                .unwrap();
+        let limits = parse_codex_limits(&value);
+        assert_eq!(limits.len(), 4);
+        assert_eq!(limits[0].title, "Codex · 주간 사용량");
+        assert_eq!(limits[0].used_percent, 36.0);
+        assert_eq!(limits[1].title, "GPT-5.3-Codex-Spark · 주간 사용량");
+        assert_eq!(limits[2].title, "GPT-5.3-Codex-Spark · 5시간 사용량");
+        assert_eq!(limits[3].title, "Luna Reserve (예비) · 주간 사용량");
+
+        let legacy = parse_codex_limits(&json!({"rateLimitsByLimitId": {}, "rateLimits": {
+            "primary": {"usedPercent": 90, "windowDurationMins": 300},
+            "secondary": {"usedPercent": 42, "windowDurationMins": 10080}
+        }}));
+        assert_eq!(legacy[0].title, "Codex · 주간 사용량");
+        assert_eq!(legacy[0].used_percent, 42.0);
+        assert_eq!(legacy[1].title, "Codex · 5시간 사용량");
+    }
 
     #[test]
     fn reads_named_buckets_and_does_not_invent_missing_limits() {

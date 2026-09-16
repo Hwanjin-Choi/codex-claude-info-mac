@@ -23,8 +23,7 @@ final class CodexMonitor: ObservableObject {
     private let snapshotKey = "usageSnapshot"
 
     var menuTitle: String {
-        guard let first = limits.first else { return "Codex" }
-        return "Codex \(Int(first.usedPercent.rounded()))%"
+        CodexRateLimits.menuTitle(for: limits)
     }
 
     var lastUpdatedText: String {
@@ -64,7 +63,7 @@ final class CodexMonitor: ObservableObject {
             async let usageResponse = try? server.request("account/usage/read")
             async let localStatus = localReader.readStatus()
             let (rateResult, modelResult, usageResult, status) = try await (rateResponse, modelResponse, usageResponse, localStatus)
-            limits = parseLimits(rateResult.value)
+            limits = CodexRateLimits.parse(rateResult.value)
             modelName = status.model ?? configuredModel() ?? defaultModel(from: modelResult?.value ?? [:]) ?? "Codex 권장 모델"
             reasoningEffort = displayEffort(status.effort)
             workState = status.workState
@@ -96,31 +95,6 @@ final class CodexMonitor: ObservableObject {
     }
 
     var weekTokens: Int { dailyUsage.reduce(0) { $0 + $1.tokens } }
-
-    private func parseLimits(_ result: [String: Any]) -> [UsageLimit] {
-        if let buckets = result["rateLimitsByLimitId"] as? [String: Any] {
-            return buckets.keys.sorted().flatMap { key -> [UsageLimit] in
-                guard let bucket = buckets[key] as? [String: Any] else { return [] }
-                return windows(bucket, bucketID: key)
-            }
-        }
-        if let bucket = result["rateLimits"] as? [String: Any] {
-            return windows(bucket, bucketID: bucket["limitId"] as? String ?? "codex")
-        }
-        return []
-    }
-
-    private func windows(_ bucket: [String: Any], bucketID: String) -> [UsageLimit] {
-        [("primary", "단기 사용량"), ("secondary", "주간 사용량")].compactMap { key, fallbackTitle in
-            guard let value = bucket[key] as? [String: Any],
-                  let used = (value["usedPercent"] as? NSNumber)?.doubleValue,
-                  let mins = (value["windowDurationMins"] as? NSNumber)?.intValue,
-                  let reset = (value["resetsAt"] as? NSNumber)?.doubleValue else { return nil }
-            let bucketTitle = bucketID == "codex" ? fallbackTitle : "\(bucketID) · \(fallbackTitle)"
-            return UsageLimit(id: "\(bucketID)-\(key)", title: bucketTitle, usedPercent: used,
-                              windowMinutes: mins, resetsAt: Date(timeIntervalSince1970: reset))
-        }
-    }
 
     private func configuredModel() -> String? {
         let url = FileManager.default.homeDirectoryForCurrentUser
@@ -173,12 +147,12 @@ final class CodexMonitor: ObservableObject {
     private func scheduleUsageNotifications() {
         guard UserDefaults.standard.object(forKey: "usageAlerts") as? Bool ?? true else { return }
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound]) { _, _ in }
-        guard let primary = limits.first else { return }
+        guard let primary = CodexRateLimits.weekly(in: limits) else { return }
         let threshold = primary.usedPercent >= 90 ? 90 : primary.usedPercent >= 80 ? 80 : nil
         if let threshold {
             notifyOnce(
                 id: "usage-\(primary.id)-\(threshold)-\(Int(primary.resetsAt.timeIntervalSince1970))",
-                title: "Codex 사용량 \(threshold)% 도달",
+                title: "Codex 주간 사용량 \(threshold)% 도달",
                 body: "\(primary.resetText)에 리셋될 예정입니다."
             )
         }
@@ -186,7 +160,7 @@ final class CodexMonitor: ObservableObject {
         if remaining > 0, remaining <= 3_600 {
             notifyOnce(
                 id: "reset-soon-\(primary.id)-\(Int(primary.resetsAt.timeIntervalSince1970))",
-                title: "Codex 사용량 리셋 임박",
+                title: "Codex 주간 한도 리셋 임박",
                 body: "약 \(Int(remaining / 60))분 후 사용량이 리셋됩니다."
             )
         }

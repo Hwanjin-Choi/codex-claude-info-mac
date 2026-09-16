@@ -114,7 +114,7 @@ function render(): void {
   const service = data[selected];
   app.innerHTML = `
     <main>
-      <div class="window-bar"><span>Codex &amp; Claude Info · 1.0.0</span><button id="hide" aria-label="트레이로 숨기기">—</button></div>
+      <div class="window-bar"><span>Codex &amp; Claude Info · 1.0.1</span><button id="hide" aria-label="트레이로 숨기기">—</button></div>
       <nav>
         <span>서비스</span>
         <button data-tab="codex" class="${selected === "codex" ? "selected" : ""}">Codex</button>

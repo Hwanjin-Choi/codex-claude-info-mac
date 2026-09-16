@@ -12,11 +12,14 @@
 git clone https://github.com/Hwanjin-Choi/codex-claude-info-mac.git
 cd codex-claude-info-mac
 zsh scripts/check-app-server.sh
+zsh scripts/check-usage-limits.sh
 zsh scripts/build-app.sh
 open "dist/Codex & Claude Info.app"
 ```
 
 app-server 검사는 Python 3 기반 로컬 가짜 서버로 동시 초기화·RPC 오류·응답 제한 시간·재연결을 확인합니다. 실제 계정에 연결하지 않습니다.
+
+주간 사용량 검사는 일반 Codex·Spark·Luna Reserve가 함께 오는 응답, primary/secondary 위치 변경, 구형 응답, 주간 데이터 누락을 검사합니다. `scripts/fixtures/rate-limits.json`은 Windows Rust 검사에서도 사용하는 비식별 예제입니다.
 
 DMG·ZIP 만들기:
 
@@ -75,8 +78,8 @@ npm run tauri -- build --ci --bundles nsis
    ```bash
    git switch main
    git pull --ff-only
-   git tag v1.0.0
-   git push origin v1.0.0
+   git tag v1.0.1
+   git push origin v1.0.1
    ```
 
 6. 태그 빌드에서 두 OS가 모두 성공해야 Release가 공개됩니다. 설치 파일 세 개와 `SHA256SUMS.txt`가 첨부됩니다. 이미 공개한 태그는 다른 커밋으로 강제 이동하지 말고 새 버전을 만드세요.
