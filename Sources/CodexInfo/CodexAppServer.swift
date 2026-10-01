@@ -54,7 +54,7 @@ actor CodexAppServer {
     }
 
     private func launch() async throws {
-        let executable = try executableOverride ?? findCodex()
+        let executable = try executableOverride ?? Self.findCodex()
         let process = Process()
         let stdinPipe = Pipe()
         let stdoutPipe = Pipe()
@@ -165,10 +165,12 @@ actor CodexAppServer {
         input = nil
     }
 
-    private func findCodex() throws -> String {
+    static func findCodex(applicationsDirectory: String = "/Applications") throws -> String {
         let candidates = [
-            "/Applications/ChatGPT.app/Contents/Resources/codex",
-            "/Applications/Codex.app/Contents/Resources/codex",
+            "\(applicationsDirectory)/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "\(applicationsDirectory)/ChatGPT.app/Contents/Resources/codex",
+            "\(applicationsDirectory)/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
+            "\(applicationsDirectory)/Codex.app/Contents/Resources/codex",
             "/opt/homebrew/bin/codex", "/usr/local/bin/codex",
             "\(FileManager.default.homeDirectoryForCurrentUser.path)/.local/bin/codex"
         ]

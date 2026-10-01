@@ -3,6 +3,20 @@ import Foundation
 @main
 enum CheckAppServer {
     static func main() async throws {
+        let files = FileManager.default
+        let applications = files.temporaryDirectory.appendingPathComponent("codex-discovery-\(UUID().uuidString)")
+        defer { try? files.removeItem(at: applications) }
+        for app in ["Codex.app", "ChatGPT.app"] {
+            for layout in ["Contents/Resources/codex", "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"] {
+                let executable = applications.appendingPathComponent("\(app)/\(layout)")
+                try files.createDirectory(at: executable.deletingLastPathComponent(), withIntermediateDirectories: true)
+                try files.copyItem(atPath: CommandLine.arguments[1], toPath: executable.path)
+                let found = try CodexAppServer.findCodex(applicationsDirectory: applications.path)
+                precondition(found == executable.path, "Must discover and prefer the current desktop bundle layout")
+            }
+        }
+        print("Current and legacy ChatGPT/Codex executable discovery: passed")
+
         let server = CodexAppServer(executable: CommandLine.arguments[1], responseTimeout: .seconds(1))
         async let first = server.request("first")
         async let second = server.request("second")
