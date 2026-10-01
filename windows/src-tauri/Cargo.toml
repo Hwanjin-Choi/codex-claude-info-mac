@@ -1,6 +1,6 @@
 [package]
 name = "codex-claude-info"
-version = "1.0.1"
+version = "1.0.2"
 description = "Codex and Claude usage in the Windows system tray"
 edition = "2021"
 
